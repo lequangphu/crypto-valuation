@@ -1,214 +1,262 @@
-import os
-import requests
+import json
+
 import duckdb
-from dotenv import load_dotenv
-from typing import List, Dict
-import time
+import requests
 
-# Load environment variables
-load_dotenv()
-CMC_API_KEY = os.getenv("COINMARKETCAP_API_KEY")
+# Define the API endpoints
+ENDPOINTS = {
+    "protocols": "https://api.llama.fi/protocols",
+    "fees": "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyFees",
+    "revenue": "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue",
+}
 
-# DeFiLlama API endpoints
-DEFILLAMA_FEES_URL = "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyFees"
-DEFILLAMA_REVENUE_URL = "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue"
-DEFILLAMA_PROTOCOLS_URL = "https://api.llama.fi/protocols"
-CMC_QUOTES_URL = "https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest"
+# Output CSV file
+OUTPUT_FILE = "joined_data_all.csv"
 
-def fetch_defillama_data() -> List[Dict]:
-    """Fetch fees and revenue data from DeFiLlama and merge them."""
-    # Fetch fees
+
+def fetch_data(endpoint_name: str, url: str) -> list:
     try:
-        fees_response = requests.get(DEFILLAMA_FEES_URL)
-        fees_response.raise_for_status()
-        fees_data = fees_response.json().get("protocols", [])
-    except requests.RequestException as e:
-        print(f"Error fetching fees data: {e}")
-        fees_data = []
-
-    # Fetch revenue
-    try:
-        revenue_response = requests.get(DEFILLAMA_REVENUE_URL)
-        revenue_response.raise_for_status()
-        revenue_data = revenue_response.json().get("protocols", [])
-    except requests.RequestException as e:
-        print(f"Error fetching revenue data: {e}")
-        revenue_data = []
-
-    # Create dictionaries for lookup
-    fees_dict = {p["defillamaId"]: p for p in fees_data}
-    revenue_dict = {p["defillamaId"]: p for p in revenue_data}
-
-    # Merge fees and revenue data
-    merged_data = []
-    for defillama_id in set(fees_dict.keys()) & set(revenue_dict.keys()):
-        fees = fees_dict[defillama_id]
-        revenue = revenue_dict[defillama_id]
-        merged_data.append({
-            "defillamaId": defillama_id,
-            "name": fees.get("name", revenue.get("name", "")),
-            "total30d_fees": fees.get("total30d", 0),
-            "total30d_revenue": revenue.get("total30d", 0),
-            "total1y_fees": fees.get("total1y", 0),
-            "total1y_revenue": revenue.get("total1y", 0),
-        })
-
-    return merged_data
-
-def fetch_defillama_protocols() -> List[Dict]:
-    """Fetch protocol data including cmcId from DeFiLlama."""
-    try:
-        response = requests.get(DEFILLAMA_PROTOCOLS_URL)
+        response = requests.get(url)
         response.raise_for_status()
-        return [
-            {
-                "defillamaId": p["id"],
-                "cmcId": p.get("cmcId"),
-            }
-            for p in response.json()
-        ]
-    except requests.RequestException as e:
-        print(f"Error fetching protocols data: {e}")
+        data = response.json()
+        if endpoint_name in ["fees", "revenue"]:
+            return data.get("protocols", [])
+        return data
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching {endpoint_name} data: {e}")
         return []
 
-def fetch_cmc_data(cmc_ids: List[str]) -> List[Dict]:
-    """Fetch market cap and FDV from CoinMarketCap for given cmcIds."""
-    cmc_data = []
-    id_chunks = [cmc_ids[i:i + 100] for i in range(0, len(cmc_ids), 100)]  # CMC allows 100 IDs per request
-    
-    headers = {
-        "X-CMC_PRO_API_KEY": CMC_API_KEY,
-        "Accept": "application/json"
-    }
-    
-    for chunk in id_chunks:
-        params = {"id": ",".join(chunk)}
-        try:
-            response = requests.get(CMC_QUOTES_URL, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json().get("data", {})
-            
-            for cmc_id, info in data.items():
-                cmc_data.append({
-                    "cmcId": cmc_id,
-                    "market_cap": info.get("quote", {}).get("USD", {}).get("market_cap", 0),
-                    "fdv": info.get("quote", {}).get("USD", {}).get("fully_diluted_market_cap", 0),
-                })
-        except requests.RequestException as e:
-            print(f"Error fetching CMC data for chunk: {e}")
-            continue
-        
-        time.sleep(1)  # Respect rate limits
-    
-    return cmc_data
 
 def main():
-    # Initialize DuckDB connection
-    con = duckdb.connect(":memory:")
-    
-    # Fetch and store DeFiLlama data
-    defillama_data = fetch_defillama_data()
-    protocols_data = fetch_defillama_protocols()
-    
-    con.execute("""
-        CREATE TABLE fees_revenue (
-            defillamaId STRING, 
-            name STRING, 
-            total30d_fees DOUBLE, 
-            total30d_revenue DOUBLE,
-            total1y_fees DOUBLE,
-            total1y_revenue DOUBLE
-        )
-    """)
+    # Step 1: Fetch data from all endpoints
+    protocols_data = fetch_data("protocols", ENDPOINTS["protocols"])
+    fees_data = fetch_data("fees", ENDPOINTS["fees"])
+    revenue_data = fetch_data("revenue", ENDPOINTS["revenue"])
+
+    # Step 2: Initialize DuckDB connection
+    con = duckdb.connect()
+
+    # Step 3: Load data into DuckDB tables
+    con.execute("CREATE TABLE protocols (data JSON)")
     con.executemany(
-        "INSERT INTO fees_revenue VALUES (?, ?, ?, ?, ?, ?)",
-        [(p["defillamaId"], p["name"], p["total30d_fees"], p["total30d_revenue"], 
-          p["total1y_fees"], p["total1y_revenue"]) for p in defillama_data]
+        "INSERT INTO protocols VALUES (?)",
+        [(json.dumps(row),) for row in protocols_data],
     )
-    
-    con.execute("CREATE TABLE protocols (defillamaId STRING, cmcId STRING)")
+
+    con.execute("CREATE TABLE fees (data JSON)")
     con.executemany(
-        "INSERT INTO protocols VALUES (?, ?)",
-        [(p["defillamaId"], p["cmcId"]) for p in protocols_data]
+        "INSERT INTO fees VALUES (?)", [(json.dumps(row),) for row in fees_data]
     )
-    
-    # Join fees/revenue and protocols to get cmcId
-    con.execute("""
-        CREATE TABLE defillama_data AS
-        SELECT f.defillamaId, f.name, f.total30d_fees, f.total30d_revenue, 
-               f.total1y_fees, f.total1y_revenue, p.cmcId
-        FROM fees_revenue f
-        LEFT JOIN protocols p ON f.defillamaId = p.defillamaId
-    """)
-    
-    # Clean data: remove rows with missing or zero values in 30d/1y timeframe or cmcId
-    con.execute("""
-        CREATE TABLE cleaned_defillama AS
-        SELECT * FROM defillama_data
-        WHERE total30d_fees > 0
-        AND total30d_revenue > 0
-        AND total1y_fees > 0
-        AND total1y_revenue > 0
-        AND cmcId IS NOT NULL
-        AND cmcId != ''
-    """)
-    
-    # Get unique cmcIds for CMC API
-    cmc_ids = con.execute("SELECT DISTINCT cmcId FROM cleaned_defillama").fetchall()
-    cmc_ids = [row[0] for row in cmc_ids]
-    
-    # Fetch CoinMarketCap data
-    cmc_data = fetch_cmc_data(cmc_ids)
-    
-    con.execute("CREATE TABLE cmc_data (cmcId STRING, market_cap DOUBLE, fdv DOUBLE)")
+
+    con.execute("CREATE TABLE revenue (data JSON)")
     con.executemany(
-        "INSERT INTO cmc_data VALUES (?, ?, ?)",
-        [(d["cmcId"], d["market_cap"], d["fdv"]) for d in cmc_data]
+        "INSERT INTO revenue VALUES (?)", [(json.dumps(row),) for row in revenue_data]
     )
-    
-    # Join datasets
+
+    # Step 4: Explode the chains array and extract all fields
+    # For protocols
+    con.execute("""
+        CREATE TABLE protocols_expanded AS
+        SELECT 
+            JSON_EXTRACT(data, '$.name') AS name,
+            JSON_EXTRACT(data, '$.category') AS category,
+            UNNEST(CAST(JSON_EXTRACT(data, '$.chains') AS VARCHAR[])) AS chain,
+            JSON_EXTRACT(data, '$.id') AS protocol_id,
+            JSON_EXTRACT(data, '$.address') AS address,
+            JSON_EXTRACT(data, '$.symbol') AS symbol,
+            JSON_EXTRACT(data, '$.url') AS url,
+            JSON_EXTRACT(data, '$.description') AS description,
+            JSON_EXTRACT(data, '$.chain') AS main_chain,
+            JSON_EXTRACT(data, '$.logo') AS logo,
+            JSON_EXTRACT(data, '$.audits') AS audits,
+            JSON_EXTRACT(data, '$.audit_note') AS audit_note,
+            JSON_EXTRACT(data, '$.gecko_id') AS gecko_id,
+            JSON_EXTRACT(data, '$.cmcId') AS cmc_id,
+            JSON_EXTRACT(data, '$.module') AS module,
+            JSON_EXTRACT(data, '$.twitter') AS twitter,
+            JSON_EXTRACT_STRING(data, '$.forkedFrom') AS forked_from,
+            JSON_EXTRACT_STRING(data, '$.oracles') AS oracles,
+            JSON_EXTRACT(data, '$.listedAt') AS listed_at,
+            JSON_EXTRACT(data, '$.methodology') AS methodology,
+            JSON_EXTRACT(data, '$.slug') AS slug,
+            COALESCE(JSON_EXTRACT(data, '$.tvl'), 0) AS tvl,
+            COALESCE(JSON_EXTRACT(data, '$.change_1h'), 0) AS change_1h,
+            COALESCE(JSON_EXTRACT(data, '$.change_1d'), 0) AS change_1d,
+            COALESCE(JSON_EXTRACT(data, '$.change_7d'), 0) AS change_7d
+        FROM protocols
+        WHERE JSON_EXTRACT(data, '$.name') IS NOT NULL
+          AND JSON_EXTRACT(data, '$.category') IS NOT NULL
+          AND JSON_EXTRACT(data, '$.chains') IS NOT NULL
+          AND json_type(JSON_EXTRACT(data, '$.chains')) = 'array'
+    """)
+
+    # For fees
+    con.execute("""
+        CREATE TABLE fees_expanded AS
+        SELECT 
+            JSON_EXTRACT(data, '$.name') AS name,
+            JSON_EXTRACT(data, '$.category') AS category,
+            UNNEST(CAST(JSON_EXTRACT(data, '$.chains') AS VARCHAR[])) AS chain,
+            JSON_EXTRACT(data, '$.defillamaId') AS fees_defillama_id,
+            JSON_EXTRACT(data, '$.displayName') AS fees_display_name,
+            JSON_EXTRACT(data, '$.module') AS fees_module,
+            JSON_EXTRACT(data, '$.logo') AS fees_logo,
+            JSON_EXTRACT(data, '$.protocolType') AS fees_protocol_type,
+            JSON_EXTRACT(data, '$.methodologyURL') AS fees_methodology_url,
+            JSON_EXTRACT(data, '$.slug') AS fees_slug,
+            JSON_EXTRACT(data, '$.id') AS fees_id,
+            COALESCE(JSON_EXTRACT(data, '$.total24h'), 0) AS fees_24h,
+            COALESCE(JSON_EXTRACT(data, '$.total48hto24h'), 0) AS fees_48h_to_24h,
+            COALESCE(JSON_EXTRACT(data, '$.total7d'), 0) AS fees_7d,
+            COALESCE(JSON_EXTRACT(data, '$.total14dto7d'), 0) AS fees_14d_to_7d,
+            COALESCE(JSON_EXTRACT(data, '$.total60dto30d'), 0) AS fees_60d_to_30d,
+            COALESCE(JSON_EXTRACT(data, '$.total30d'), 0) AS fees_30d,
+            COALESCE(JSON_EXTRACT(data, '$.total1y'), 0) AS fees_1y,
+            COALESCE(JSON_EXTRACT(data, '$.totalAllTime'), 0) AS fees_all_time,
+            COALESCE(JSON_EXTRACT(data, '$.average1y'), 0) AS fees_average_1y,
+            COALESCE(JSON_EXTRACT(data, '$.change_30dover30d'), 0) AS fees_change_30d_over_30d,
+            JSON_EXTRACT_STRING(data, '$.breakdown24h') AS fees_breakdown_24h,
+            JSON_EXTRACT_STRING(data, '$.breakdown30d') AS fees_breakdown_30d,
+            COALESCE(JSON_EXTRACT(data, '$.total7DaysAgo'), 0) AS fees_7_days_ago,
+            COALESCE(JSON_EXTRACT(data, '$.total30DaysAgo'), 0) AS fees_30_days_ago,
+            COALESCE(JSON_EXTRACT(data, '$.latestFetchIsOk'), 0) AS fees_latest_fetch_is_ok
+        FROM fees
+        WHERE JSON_EXTRACT(data, '$.name') IS NOT NULL
+          AND JSON_EXTRACT(data, '$.category') IS NOT NULL
+          AND JSON_EXTRACT(data, '$.chains') IS NOT NULL
+          AND json_type(JSON_EXTRACT(data, '$.chains')) = 'array'
+    """)
+
+    # For revenue
+    con.execute("""
+        CREATE TABLE revenue_expanded AS
+        SELECT 
+            JSON_EXTRACT(data, '$.name') AS name,
+            JSON_EXTRACT(data, '$.category') AS category,
+            UNNEST(CAST(JSON_EXTRACT(data, '$.chains') AS VARCHAR[])) AS chain,
+            JSON_EXTRACT(data, '$.defillamaId') AS revenue_defillama_id,
+            JSON_EXTRACT(data, '$.displayName') AS revenue_display_name,
+            JSON_EXTRACT(data, '$.module') AS revenue_module,
+            JSON_EXTRACT(data, '$.logo') AS revenue_logo,
+            JSON_EXTRACT(data, '$.protocolType') AS revenue_protocol_type,
+            JSON_EXTRACT(data, '$.methodologyURL') AS revenue_methodology_url,
+            JSON_EXTRACT(data, '$.slug') AS revenue_slug,
+            JSON_EXTRACT(data, '$.id') AS revenue_id,
+            COALESCE(JSON_EXTRACT(data, '$.total24h'), 0) AS revenue_24h,
+            COALESCE(JSON_EXTRACT(data, '$.total48hto24h'), 0) AS revenue_48h_to_24h,
+            COALESCE(JSON_EXTRACT(data, '$.total7d'), 0) AS revenue_7d,
+            COALESCE(JSON_EXTRACT(data, '$.total14dto7d'), 0) AS revenue_14d_to_7d,
+            COALESCE(JSON_EXTRACT(data, '$.total60dto30d'), 0) AS revenue_60d_to_30d,
+            COALESCE(JSON_EXTRACT(data, '$.total30d'), 0) AS revenue_30d,
+            COALESCE(JSON_EXTRACT(data, '$.total1y'), 0) AS revenue_1y,
+            COALESCE(JSON_EXTRACT(data, '$.totalAllTime'), 0) AS revenue_all_time,
+            COALESCE(JSON_EXTRACT(data, '$.average1y'), 0) AS revenue_average_1y,
+            COALESCE(JSON_EXTRACT(data, '$.change_30dover30d'), 0) AS revenue_change_30d_over_30d,
+            JSON_EXTRACT_STRING(data, '$.breakdown24h') AS revenue_breakdown_24h,
+            JSON_EXTRACT_STRING(data, '$.breakdown30d') AS revenue_breakdown_30d,
+            COALESCE(JSON_EXTRACT(data, '$.total7DaysAgo'), 0) AS revenue_7_days_ago,
+            COALESCE(JSON_EXTRACT(data, '$.total30DaysAgo'), 0) AS revenue_30_days_ago,
+            COALESCE(JSON_EXTRACT(data, '$.latestFetchIsOk'), 0) AS revenue_latest_fetch_is_ok
+        FROM revenue
+        WHERE JSON_EXTRACT(data, '$.name') IS NOT NULL
+          AND JSON_EXTRACT(data, '$.category') IS NOT NULL
+          AND JSON_EXTRACT(data, '$.chains') IS NOT NULL
+          AND json_type(JSON_EXTRACT(data, '$.chains')) = 'array'
+    """)
+
+    # Step 5: Perform inner join
     con.execute("""
         CREATE TABLE joined_data AS
-        SELECT d.defillamaId, d.name, d.total30d_fees, d.total30d_revenue, 
-               d.total1y_fees, d.total1y_revenue, d.cmcId,
-               c.market_cap, c.fdv
-        FROM cleaned_defillama d
-        INNER JOIN cmc_data c ON d.cmcId = c.cmcId
-        WHERE c.fdv > 0
+        SELECT 
+            p.name,
+            p.category,
+            p.chain,
+            p.protocol_id,
+            p.address,
+            p.symbol,
+            p.url,
+            p.description,
+            p.main_chain,
+            p.logo,
+            p.audits,
+            p.audit_note,
+            p.gecko_id,
+            p.cmc_id,
+            p.module,
+            p.twitter,
+            p.forked_from,
+            p.oracles,
+            p.listed_at,
+            p.methodology,
+            p.slug,
+            p.tvl,
+            p.change_1h,
+            p.change_1d,
+            p.change_7d,
+            f.fees_defillama_id,
+            f.fees_display_name,
+            f.fees_module,
+            f.fees_logo,
+            f.fees_protocol_type,
+            f.fees_methodology_url,
+            f.fees_slug,
+            f.fees_id,
+            f.fees_24h,
+            f.fees_48h_to_24h,
+            f.fees_7d,
+            f.fees_14d_to_7d,
+            f.fees_60d_to_30d,
+            f.fees_30d,
+            f.fees_1y,
+            f.fees_all_time,
+            f.fees_average_1y,
+            f.fees_change_30d_over_30d,
+            f.fees_breakdown_24h,
+            f.fees_breakdown_30d,
+            f.fees_7_days_ago,
+            f.fees_30_days_ago,
+            f.fees_latest_fetch_is_ok,
+            r.revenue_defillama_id,
+            r.revenue_display_name,
+            r.revenue_module,
+            r.revenue_logo,
+            r.revenue_protocol_type,
+            r.revenue_methodology_url,
+            r.revenue_slug,
+            r.revenue_id,
+            r.revenue_24h,
+            r.revenue_48h_to_24h,
+            r.revenue_7d,
+            r.revenue_14d_to_7d,
+            r.revenue_60d_to_30d,
+            r.revenue_30d,
+            r.revenue_1y,
+            r.revenue_all_time,
+            r.revenue_average_1y,
+            r.revenue_change_30d_over_30d,
+            r.revenue_breakdown_24h,
+            r.revenue_breakdown_30d,
+            r.revenue_7_days_ago,
+            r.revenue_30_days_ago,
+            r.revenue_latest_fetch_is_ok
+        FROM protocols_expanded p
+        INNER JOIN fees_expanded f
+            ON p.name = f.name
+            AND p.category = f.category
+            AND p.chain = f.chain
+        INNER JOIN revenue_expanded r
+            ON p.name = r.name
+            AND p.category = r.category
+            AND p.chain = r.chain
     """)
-    
-    # Calculate valuation multiples
-    con.execute("""
-        CREATE TABLE final_data AS
-        SELECT defillamaId, name, cmcId, 
-               total30d_fees, total30d_revenue, 
-               total1y_fees, total1y_revenue, 
-               market_cap, fdv,
-               fdv / total30d_fees AS fdv_fee_30d,
-               fdv / total30d_revenue AS fdv_revenue_30d,
-               fdv / (total30d_fees * 12) AS fdv_fee_annual,
-               fdv / (total30d_revenue * 12) AS fdv_revenue_annual,
-               fdv / total1y_fees AS fdv_fee_1y,
-               fdv / total1y_revenue AS fdv_revenue_1y
-        FROM joined_data
-    """)
-    
-    # Export to CSV
-    con.execute("COPY final_data TO 'valuation_multiples.csv' WITH (HEADER, DELIMITER ',')")
-    
-    # Print summary of top projects by FDV/fee (30d)
-    summary = con.execute("""
-        SELECT name, cmcId, fdv_fee_30d, fdv_revenue_30d, fdv_fee_1y, fdv_revenue_1y
-        FROM final_data
-        WHERE fdv_fee_30d IS NOT NULL
-        ORDER BY fdv_fee_30d ASC
-        LIMIT 5
-    """).fetchdf()
-    
-    print("\nTop 5 Projects by Lowest FDV/Fee (30d):")
-    print(summary.to_string(index=False))
-    
-    print("\nData processing complete. Results saved to 'valuation_multiples.csv'.")
+
+    # Step 6: Export to CSV
+    con.execute(f"COPY joined_data TO '{OUTPUT_FILE}' WITH (FORMAT CSV, HEADER)")
+    print(f"Joined and cleaned data with all fields exported to {OUTPUT_FILE}")
+
+    # Step 7: Clean up
+    con.close()
+
 
 if __name__ == "__main__":
     main()
