@@ -1,18 +1,17 @@
-import json
-
-import duckdb
 import requests
+import duckdb
+import json
+import os
 
 # Define the API endpoints
 ENDPOINTS = {
     "protocols": "https://api.llama.fi/protocols",
     "fees": "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyFees",
-    "revenue": "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue",
+    "revenue": "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue"
 }
 
-# Output CSV file
-OUTPUT_FILE = "joined_data_all.csv"
-
+# Output DuckDB database file
+OUTPUT_FILE = "joined_data.db"
 
 def fetch_data(endpoint_name: str, url: str) -> list:
     try:
@@ -26,32 +25,24 @@ def fetch_data(endpoint_name: str, url: str) -> list:
         print(f"Error fetching {endpoint_name} data: {e}")
         return []
 
-
 def main():
     # Step 1: Fetch data from all endpoints
     protocols_data = fetch_data("protocols", ENDPOINTS["protocols"])
     fees_data = fetch_data("fees", ENDPOINTS["fees"])
     revenue_data = fetch_data("revenue", ENDPOINTS["revenue"])
 
-    # Step 2: Initialize DuckDB connection
-    con = duckdb.connect()
+    # Step 2: Initialize DuckDB connection to a file
+    con = duckdb.connect(OUTPUT_FILE)
 
     # Step 3: Load data into DuckDB tables
     con.execute("CREATE TABLE protocols (data JSON)")
-    con.executemany(
-        "INSERT INTO protocols VALUES (?)",
-        [(json.dumps(row),) for row in protocols_data],
-    )
+    con.executemany("INSERT INTO protocols VALUES (?)", [(json.dumps(row),) for row in protocols_data])
 
     con.execute("CREATE TABLE fees (data JSON)")
-    con.executemany(
-        "INSERT INTO fees VALUES (?)", [(json.dumps(row),) for row in fees_data]
-    )
+    con.executemany("INSERT INTO fees VALUES (?)", [(json.dumps(row),) for row in fees_data])
 
     con.execute("CREATE TABLE revenue (data JSON)")
-    con.executemany(
-        "INSERT INTO revenue VALUES (?)", [(json.dumps(row),) for row in revenue_data]
-    )
+    con.executemany("INSERT INTO revenue VALUES (?)", [(json.dumps(row),) for row in revenue_data])
 
     # Step 4: Explode the chains array and extract all fields
     # For protocols
@@ -250,13 +241,11 @@ def main():
             AND p.chain = r.chain
     """)
 
-    # Step 6: Export to CSV
-    con.execute(f"COPY joined_data TO '{OUTPUT_FILE}' WITH (FORMAT CSV, HEADER)")
-    print(f"Joined and cleaned data with all fields exported to {OUTPUT_FILE}")
+    # Step 6: The data is already in the DuckDB database file
+    print(f"Joined and cleaned data with all fields saved to {OUTPUT_FILE}")
 
     # Step 7: Clean up
     con.close()
-
 
 if __name__ == "__main__":
     main()
