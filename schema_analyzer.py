@@ -38,6 +38,14 @@ def analyze_endpoints(endpoints: Dict[str, str]) -> Dict[str, Dict[str, list]]:
     for endpoint_name, url in endpoints.items():
         try:
             data = fetch_endpoint_data(url)
+            
+            # Print detailed structure for debugging
+            print(f"\nAnalyzing {endpoint_name}:")
+            if isinstance(data, dict) and "protocols" in data:
+                print(f"First protocol item keys: {list(data['protocols'][0].keys())}")
+            elif isinstance(data, list):
+                print(f"First item keys: {list(data[0].keys())}")
+            
             schema = analyze_schema(data)
             
             # Convert sets to lists for JSON serialization

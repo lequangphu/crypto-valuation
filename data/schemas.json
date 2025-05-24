@@ -1,0 +1,500 @@
+{
+  "protocols": {
+    "id": [
+      "str"
+    ],
+    "name": [
+      "str"
+    ],
+    "address": [
+      "NoneType"
+    ],
+    "symbol": [
+      "str"
+    ],
+    "url": [
+      "str"
+    ],
+    "description": [
+      "str"
+    ],
+    "chain": [
+      "str"
+    ],
+    "logo": [
+      "str"
+    ],
+    "audits": [
+      "str"
+    ],
+    "audit_note": [
+      "NoneType"
+    ],
+    "gecko_id": [
+      "NoneType"
+    ],
+    "cmcId": [
+      "NoneType"
+    ],
+    "category": [
+      "str"
+    ],
+    "chains": [
+      "list"
+    ],
+    "module": [
+      "str"
+    ],
+    "twitter": [
+      "str"
+    ],
+    "forkedFrom": [
+      "list"
+    ],
+    "oracles": [
+      "list"
+    ],
+    "listedAt": [
+      "int"
+    ],
+    "methodology": [
+      "str"
+    ],
+    "slug": [
+      "str"
+    ],
+    "tvl": [
+      "float"
+    ],
+    "chainTvls": [
+      "dict"
+    ],
+    "chainTvls.Sui": [
+      "float"
+    ],
+    "chainTvls.Algorand": [
+      "float"
+    ],
+    "chainTvls.Hedera": [
+      "float"
+    ],
+    "chainTvls.Scroll": [
+      "float"
+    ],
+    "chainTvls.Litecoin": [
+      "float"
+    ],
+    "chainTvls.Chiliz": [
+      "float"
+    ],
+    "chainTvls.Ripple": [
+      "float"
+    ],
+    "chainTvls.Ronin": [
+      "float"
+    ],
+    "chainTvls.Near": [
+      "float"
+    ],
+    "chainTvls.Celo": [
+      "float"
+    ],
+    "chainTvls.Sonic": [
+      "float"
+    ],
+    "chainTvls.Manta": [
+      "float"
+    ],
+    "chainTvls.Op_Bnb": [
+      "float"
+    ],
+    "chainTvls.Stellar": [
+      "float"
+    ],
+    "chainTvls.Starknet": [
+      "float"
+    ],
+    "chainTvls.Aptos": [
+      "float"
+    ],
+    "chainTvls.Base": [
+      "float"
+    ],
+    "chainTvls.Arbitrum": [
+      "float"
+    ],
+    "chainTvls.Ethereum": [
+      "float"
+    ],
+    "chainTvls.Binance": [
+      "float"
+    ],
+    "chainTvls.Optimism": [
+      "float"
+    ],
+    "chainTvls.Tron": [
+      "float"
+    ],
+    "chainTvls.zkSync Era": [
+      "float"
+    ],
+    "chainTvls.Avalanche": [
+      "float"
+    ],
+    "chainTvls.Polkadot": [
+      "float"
+    ],
+    "chainTvls.Polygon": [
+      "float"
+    ],
+    "chainTvls.Solana": [
+      "float"
+    ],
+    "chainTvls.TON": [
+      "float"
+    ],
+    "chainTvls.Bitcoin": [
+      "float"
+    ],
+    "chainTvls.Doge": [
+      "float"
+    ],
+    "change_1h": [
+      "float"
+    ],
+    "change_1d": [
+      "float"
+    ],
+    "change_7d": [
+      "float"
+    ],
+    "tokenBreakdowns": [
+      "dict"
+    ],
+    "mcap": [
+      "NoneType"
+    ]
+  },
+  "fees": {
+    "totalDataChart": [
+      "list"
+    ],
+    "totalDataChartBreakdown": [
+      "list"
+    ],
+    "breakdown24h": [
+      "NoneType"
+    ],
+    "breakdown30d": [
+      "NoneType"
+    ],
+    "chain": [
+      "NoneType"
+    ],
+    "allChains": [
+      "list"
+    ],
+    "total24h": [
+      "int"
+    ],
+    "total48hto24h": [
+      "int"
+    ],
+    "total7d": [
+      "int"
+    ],
+    "total14dto7d": [
+      "int"
+    ],
+    "total60dto30d": [
+      "int"
+    ],
+    "total30d": [
+      "int"
+    ],
+    "total1y": [
+      "int"
+    ],
+    "change_1d": [
+      "float"
+    ],
+    "change_7d": [
+      "float"
+    ],
+    "change_1m": [
+      "float"
+    ],
+    "change_7dover7d": [
+      "float"
+    ],
+    "change_30dover30d": [
+      "float"
+    ],
+    "total7DaysAgo": [
+      "int"
+    ],
+    "total30DaysAgo": [
+      "int"
+    ],
+    "totalAllTime": [
+      "int"
+    ],
+    "protocols": [
+      "list"
+    ],
+    "protocols.total24h": [
+      "int"
+    ],
+    "protocols.total48hto24h": [
+      "int"
+    ],
+    "protocols.total7d": [
+      "int"
+    ],
+    "protocols.total14dto7d": [
+      "int"
+    ],
+    "protocols.total60dto30d": [
+      "int"
+    ],
+    "protocols.total30d": [
+      "int"
+    ],
+    "protocols.total1y": [
+      "int"
+    ],
+    "protocols.totalAllTime": [
+      "int"
+    ],
+    "protocols.average1y": [
+      "float"
+    ],
+    "protocols.change_30dover30d": [
+      "int"
+    ],
+    "protocols.breakdown24h": [
+      "dict"
+    ],
+    "protocols.breakdown24h.ethereum": [
+      "dict"
+    ],
+    "protocols.breakdown24h.ethereum.WBTC": [
+      "int"
+    ],
+    "protocols.breakdown30d": [
+      "dict"
+    ],
+    "protocols.breakdown30d.ethereum": [
+      "dict"
+    ],
+    "protocols.breakdown30d.ethereum.WBTC": [
+      "int"
+    ],
+    "protocols.total7DaysAgo": [
+      "int"
+    ],
+    "protocols.total30DaysAgo": [
+      "int"
+    ],
+    "protocols.defillamaId": [
+      "str"
+    ],
+    "protocols.name": [
+      "str"
+    ],
+    "protocols.displayName": [
+      "str"
+    ],
+    "protocols.module": [
+      "str"
+    ],
+    "protocols.category": [
+      "str"
+    ],
+    "protocols.logo": [
+      "str"
+    ],
+    "protocols.chains": [
+      "list"
+    ],
+    "protocols.protocolType": [
+      "str"
+    ],
+    "protocols.methodologyURL": [
+      "str"
+    ],
+    "protocols.methodology": [
+      "dict"
+    ],
+    "protocols.latestFetchIsOk": [
+      "bool"
+    ],
+    "protocols.slug": [
+      "str"
+    ],
+    "protocols.id": [
+      "str"
+    ]
+  },
+  "revenue": {
+    "totalDataChart": [
+      "list"
+    ],
+    "totalDataChartBreakdown": [
+      "list"
+    ],
+    "breakdown24h": [
+      "NoneType"
+    ],
+    "breakdown30d": [
+      "NoneType"
+    ],
+    "chain": [
+      "NoneType"
+    ],
+    "allChains": [
+      "list"
+    ],
+    "total24h": [
+      "int"
+    ],
+    "total48hto24h": [
+      "int"
+    ],
+    "total7d": [
+      "int"
+    ],
+    "total14dto7d": [
+      "int"
+    ],
+    "total60dto30d": [
+      "int"
+    ],
+    "total30d": [
+      "int"
+    ],
+    "total1y": [
+      "int"
+    ],
+    "change_1d": [
+      "float"
+    ],
+    "change_7d": [
+      "float"
+    ],
+    "change_1m": [
+      "float"
+    ],
+    "change_7dover7d": [
+      "float"
+    ],
+    "change_30dover30d": [
+      "float"
+    ],
+    "total7DaysAgo": [
+      "int"
+    ],
+    "total30DaysAgo": [
+      "int"
+    ],
+    "totalAllTime": [
+      "int"
+    ],
+    "protocols": [
+      "list"
+    ],
+    "protocols.total24h": [
+      "int"
+    ],
+    "protocols.total48hto24h": [
+      "int"
+    ],
+    "protocols.total7d": [
+      "int"
+    ],
+    "protocols.total14dto7d": [
+      "int"
+    ],
+    "protocols.total60dto30d": [
+      "int"
+    ],
+    "protocols.total30d": [
+      "int"
+    ],
+    "protocols.total1y": [
+      "int"
+    ],
+    "protocols.totalAllTime": [
+      "int"
+    ],
+    "protocols.average1y": [
+      "float"
+    ],
+    "protocols.change_30dover30d": [
+      "int"
+    ],
+    "protocols.breakdown24h": [
+      "dict"
+    ],
+    "protocols.breakdown24h.ethereum": [
+      "dict"
+    ],
+    "protocols.breakdown24h.ethereum.WBTC": [
+      "int"
+    ],
+    "protocols.breakdown30d": [
+      "dict"
+    ],
+    "protocols.breakdown30d.ethereum": [
+      "dict"
+    ],
+    "protocols.breakdown30d.ethereum.WBTC": [
+      "int"
+    ],
+    "protocols.total7DaysAgo": [
+      "int"
+    ],
+    "protocols.total30DaysAgo": [
+      "int"
+    ],
+    "protocols.defillamaId": [
+      "str"
+    ],
+    "protocols.name": [
+      "str"
+    ],
+    "protocols.displayName": [
+      "str"
+    ],
+    "protocols.module": [
+      "str"
+    ],
+    "protocols.category": [
+      "str"
+    ],
+    "protocols.logo": [
+      "str"
+    ],
+    "protocols.chains": [
+      "list"
+    ],
+    "protocols.protocolType": [
+      "str"
+    ],
+    "protocols.methodologyURL": [
+      "str"
+    ],
+    "protocols.methodology": [
+      "dict"
+    ],
+    "protocols.latestFetchIsOk": [
+      "bool"
+    ],
+    "protocols.slug": [
+      "str"
+    ],
+    "protocols.id": [
+      "str"
+    ]
+  }
+}
